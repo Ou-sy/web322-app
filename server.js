@@ -13,7 +13,11 @@
 const express = require("express")
 const app = express();
 var path = require("path");
+var blogService  = require("./blog-service.js");
+const fs = require("fs");
 var HTTP_PORT = process.env.PORT || 8080;
+
+var published  = false;
 
 // call this function after the http server starts listening for requests
 function onHttpStart() {
@@ -31,8 +35,43 @@ app.get("/", function(req,res){
 app.get("/about", function(req,res){
     res.sendFile(path.join(__dirname,"/views/about.html"));
 });
+app.get("/blog", function (req, res) {
+  blogService.getPublishedPosts()
+    .then((posts) => {
+      res.json(posts);
+    })
+    .catch((error) => {
+      res.status(500).json({ error: error });
+    });
+});
+app.get("/posts", function(req,res){
+  blogService.getAllPosts()
+    .then((posts) => {
+      res.json(posts);
+    })
+    .catch((error) => {
+      res.status(500).json({ error: error });
+    });
+});
+app.get("/categories", function(req,res){
+  blogService.getCategories()
+    .then((categories) => {
+      res.json(categories);
+    })
+    .catch((error) => {
+      res.status(500).json({ error: error });
+    });
+});
 
-// setup http server to listen on HTTP_PORT
-app.listen(HTTP_PORT, onHttpStart);
+app.use(function(req,res){
+    res.status(404).send("Page Not Found");
+});
 
-
+// Initialize the blog service and start the server only if initialization is successful
+blogService.initialize()
+  .then(() => {
+    app.listen(HTTP_PORT, onHttpStart);
+  })
+  .catch((error) => {
+    console.error("Failed to initialize blog service:", error);
+  });
