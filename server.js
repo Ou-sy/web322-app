@@ -5,9 +5,9 @@
 * 
 *  Name: Song-Yun Ou Student ID: 174196212 Date: June 05, 2023
 *
-*  Cyclic Web App URL: ________________________________________________________
+*  Cyclic Web App URL: https://easy-jade-bass-gown.cyclic.app/ 
 *
-*  GitHub Repository URL: ______________________________________________________
+*  GitHub Repository URL: https://github.com/Ou-sy/web322-app
 *
 ********************************************************************************/ 
 const express = require("express")
