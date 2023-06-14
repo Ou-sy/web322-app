@@ -18,6 +18,19 @@ function readFile(filePath) {
   });
 }
 
+// Helper function to write data to a file
+function writeFile(filePath, data) {
+  return new Promise((resolve, reject) => {
+    fs.writeFile(filePath, data, "utf8", (err) => {
+      if (err) {
+        reject("Unable to write to file: " + filePath);
+      } else {
+        resolve();
+      }
+    });
+  });
+}
+
 // Exported functions
 function initialize() {
   return new Promise((resolve, reject) => {
@@ -25,16 +38,15 @@ function initialize() {
     const categoriesFilePath = path.join(__dirname, "/data/categories.json");
 
     readFile(postsFilePath)
-      .then(data => {
+      .then((data) => {
         posts = JSON.parse(data);
-        console.log(posts);
         return readFile(categoriesFilePath);
       })
-      .then(data => {
+      .then((data) => {
         categories = JSON.parse(data);
         resolve();
       })
-      .catch(error => {
+      .catch((error) => {
         reject(error);
       });
   });
@@ -52,7 +64,7 @@ function getAllPosts() {
 
 function getPublishedPosts() {
   return new Promise((resolve, reject) => {
-    const publishedPosts = posts.filter(post => post.published === true);
+    const publishedPosts = posts.filter((post) => post.published === true);
     if (publishedPosts.length == 0) {
       reject("No results returned");
     } else {
@@ -71,9 +83,62 @@ function getCategories() {
   });
 }
 
+
+
+function getPostsByMinDate(minDateStr) {
+  return new Promise((resolve, reject) => {
+    const minDate = new Date(minDateStr);
+    const filteredPosts = posts.filter((post) => new Date(post.postDate) >= minDate);
+    if (filteredPosts.length === 0) {
+      reject("No results returned");
+    } else {
+      resolve(filteredPosts);
+    }
+  });
+}
+
+function getPostById(id) {
+  return new Promise((resolve, reject) => {
+    const post = posts.find((post) => post.id === id);
+    if (!post) {
+      reject("No result returned");
+    } else {
+      resolve(post);
+    }
+  });
+}
+
+function addPost(postData) {
+  return new Promise((resolve, reject) => {
+    if (postData.published === undefined) {
+      postData.published = false;
+    } else {
+      postData.published = true;
+    }
+
+    postData.id = posts.length + 1;
+    posts.push(postData);
+
+    const postsFilePath = path.join(__dirname, "/data/posts.json");
+    const data = JSON.stringify(posts, null, 2);
+
+    writeFile(postsFilePath, data)
+      .then(() => {
+        resolve(postData);
+      })
+      .catch((error) => {
+        reject(error);
+      });
+  });
+}
+
 module.exports = {
   initialize,
   getAllPosts,
   getPublishedPosts,
-  getCategories
+  getCategories,
+  getPostsByCategory,
+  getPostsByMinDate,
+  getPostById,
+  addPost,
 };
