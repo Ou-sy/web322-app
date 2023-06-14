@@ -83,6 +83,16 @@ function getCategories() {
   });
 }
 
+function getPostsByCategory(category) {
+  return new Promise((resolve, reject) => {
+    const filteredPosts = posts.filter((post) => post.category === category);
+    if (filteredPosts.length === 0) {
+      reject("No results returned");
+    } else {
+      resolve(filteredPosts);
+    }
+  });
+}
 
 
 function getPostsByMinDate(minDateStr) {
