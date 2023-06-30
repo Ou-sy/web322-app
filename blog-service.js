@@ -73,6 +73,17 @@ function getPublishedPosts() {
   });
 }
 
+function getPublishedPostsByCategory(category) {
+  return new Promise((resolve, reject) => {
+    const filteredPosts = posts.filter((post) => post.published && post.category == parseInt(category));
+    if (filteredPosts.length === 0) {
+      reject("No results returned");
+    } else {
+      resolve(filteredPosts);
+    }
+  });
+}
+
 function getCategories() {
   return new Promise((resolve, reject) => {
     if (categories.length == 0) {
@@ -85,7 +96,7 @@ function getCategories() {
 
 function getPostsByCategory(category) {
   return new Promise((resolve, reject) => {
-    const filteredPosts = posts.filter((post) => post.category === category);
+    const filteredPosts = posts.filter((post) => post.category === parseInt(category));
     if (filteredPosts.length === 0) {
       reject("No results returned");
     } else {
@@ -93,7 +104,6 @@ function getPostsByCategory(category) {
     }
   });
 }
-
 
 function getPostsByMinDate(minDateStr) {
   return new Promise((resolve, reject) => {
@@ -109,8 +119,8 @@ function getPostsByMinDate(minDateStr) {
 
 function getPostById(id) {
   return new Promise((resolve, reject) => {
-    const post = posts.find((post) => post.id === id);
-    if (!post) {
+    const post = posts.find((post) => post.id === parseInt(id));
+    if (post.length === 0) {
       reject("No result returned");
     } else {
       resolve(post);
@@ -127,6 +137,7 @@ function addPost(postData) {
     }
 
     postData.id = posts.length + 1;
+    postData.postDate = new Date().toISOString().split("T")[0];
     posts.push(postData);
 
     const postsFilePath = path.join(__dirname, "/data/posts.json");
@@ -142,13 +153,15 @@ function addPost(postData) {
   });
 }
 
+
 module.exports = {
   initialize,
   getAllPosts,
   getPublishedPosts,
+  getPublishedPostsByCategory,
   getCategories,
   getPostsByCategory,
   getPostsByMinDate,
   getPostById,
-  addPost,
+  addPost  
 };

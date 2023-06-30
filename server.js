@@ -1,9 +1,9 @@
 /*********************************************************************************
-*  WEB322 – Assignment 03
+*  WEB322 – Assignment 04
 *  I declare that this assignment is my own work in accordance with Seneca  Academic Policy.  No part *  of this assignment has been copied manually or electronically from any other source 
 *  (including 3rd party web sites) or distributed to other students.
 * 
-*  Name: Song-Yun Ou Student ID: 174196212 Date: June 05, 2023
+*  Name: Song-Yun Ou Student ID: 174196212 Date: June 29, 2023
 *
 *  Cyclic Web App URL: https://easy-jade-bass-gown.cyclic.app/ 
 *
@@ -17,9 +17,12 @@ const fs = require("fs");
 const multer = require("multer");
 const cloudinary = require('cloudinary').v2
 const streamifier = require('streamifier')
+const exphbs = require("express-handlebars");
+const stripJs = require('strip-js');
+var blogService = require("./blog-service.js");
+var blogData = require("./blog-service");
 
 var published  = false;
-var blogService  = require("./blog-service.js");
 var HTTP_PORT = process.env.PORT || 8080;
 const upload = multer(); // no { storage: storage } since we are not using disk storage
 
@@ -29,6 +32,10 @@ cloudinary.config({
   api_secret: 'jZBsXIKOnPDmnxG7hRBgGYAI0Po',
   secure: true
 });
+
+// Configure Express to use Handlebars as the template engine
+app.engine('hbs', exphbs.engine({ extname: '.hbs' }));
+app.set('view engine', 'hbs');
 
 
 // call this function after the http server starts listening for requests
@@ -40,22 +47,145 @@ function onHttpStart() {
 // like images, css files, etc.
 app.use(express.static("static"));
 
+
+app.use(function(req, res, next) {
+  let route = req.path.substring(1);
+  app.locals.activeRoute = "/" + (isNaN(route.split('/')[1]) ? route.replace(/\/(?!.*)/, "") : route.replace(/\/(.*)/, ""));
+  app.locals.viewingCategory = req.query.category;
+  next();
+});
+
+app.engine('.hbs', exphbs.engine({ 
+  extname: '.hbs',
+  helpers: { 
+    navLink: function(url, options){
+      return '<li' + 
+          ((url == app.locals.activeRoute) ? ' class="active" ' : '') + 
+          '><a href="' + url + '">' + options.fn(this) + '</a></li>';
+    },
+    equal: function (lvalue, rvalue, options) {
+      if (arguments.length < 3)
+          throw new Error("Handlebars Helper equal needs 2 parameters");
+      if (lvalue != rvalue) {
+          return options.inverse(this);
+      } else {
+          return options.fn(this);
+      }
+    },
+    safeHTML: function(context){
+      return stripJs(context);
+    }  
+  }
+}));
+
+
+app.get("/", function (req, res) {
+  res.redirect("/blog");
+});
+
 // setup a 'route' to listen on the default url path (http://localhost)
-app.get("/", function(req,res){
-    res.redirect("/about");
+app.get("/about", function (req, res) {
+  res.render("about");
 });
-app.get("/about", function(req,res){
-    res.sendFile(path.join(__dirname,"/views/about.html"));
+
+app.get('/blog/:id', async (req, res) => {
+
+  // Declare an object to store properties for the view
+  let viewData = {};
+
+  try{
+
+      // declare empty array to hold "post" objects
+      let posts = [];
+
+      // if there's a "category" query, filter the returned posts by category
+      if(req.query.category){
+          // Obtain the published "posts" by category
+          posts = await blogData.getPublishedPostsByCategory(req.query.category);
+      }else{
+          // Obtain the published "posts"
+          posts = await blogData.getPublishedPosts();
+      }
+
+      // sort the published posts by postDate
+      posts.sort((a,b) => new Date(b.postDate) - new Date(a.postDate));
+
+      // store the "posts" and "post" data in the viewData object (to be passed to the view)
+      viewData.posts = posts;
+
+  }catch(err){
+      viewData.message = "no results";
+  }
+
+  try{
+      // Obtain the post by "id"
+      viewData.post = await blogData.getPostById(req.params.id);
+  }catch(err){
+      viewData.message = "no results"; 
+  }
+
+  try{
+      // Obtain the full list of "categories"
+      let categories = await blogData.getCategories();
+
+      // store the "categories" data in the viewData object (to be passed to the view)
+      viewData.categories = categories;
+  }catch(err){
+      viewData.categoriesMessage = "no results"
+  }
+
+  // render the "blog" view with all of the data (viewData)
+  res.render("blog", {data: viewData})
 });
-app.get("/blog", function (req, res) {
-  blogService.getPublishedPosts()
-  .then((posts) => {
-    res.json(posts);
-  })
-  .catch((error) => {
-    res.status(500).json({ error: error });
-  });
+
+app.get('/blog', async (req, res) => {
+
+  // Declare an object to store properties for the view
+  let viewData = {};
+
+  try{
+
+      // declare empty array to hold "post" objects
+      let posts = [];
+
+      // if there's a "category" query, filter the returned posts by category
+      if(req.query.category){
+          // Obtain the published "posts" by category
+          posts = await blogData.getPublishedPostsByCategory(req.query.category);
+      }else{
+          // Obtain the published "posts"
+          posts = await blogData.getPublishedPosts();
+      }
+
+      // sort the published posts by postDate
+      posts.sort((a,b) => new Date(b.postDate) - new Date(a.postDate));
+
+      // get the latest post from the front of the list (element 0)
+      let post = posts[0]; 
+
+      // store the "posts" and "post" data in the viewData object (to be passed to the view)
+      viewData.posts = posts;
+      viewData.post = post;
+
+  }catch(err){
+      viewData.message = "no results";
+  }
+
+  try{
+      // Obtain the full list of "categories"
+      let categories = await blogData.getCategories();
+
+      // store the "categories" data in the viewData object (to be passed to the view)
+      viewData.categories = categories;
+  }catch(err){
+      viewData.categoriesMessage = "no results"
+  }
+
+  // render the "blog" view with all of the data (viewData)
+  res.render("blog", {data: viewData})
+
 });
+
 app.get("/posts", function (req, res) {
   const category = req.query.category;
   const minDate = req.query.minDate;
@@ -64,49 +194,37 @@ app.get("/posts", function (req, res) {
     blogService
       .getPostsByCategory(category)
       .then((posts) => {
-        res.json(posts);
+        res.render("posts", { posts: posts });
       })
       .catch((error) => {
-        res.status(500).json({ error: error });
+        res.render("posts", { message: error });
       });
   } else if (minDate) {
     blogService
       .getPostsByMinDate(minDate)
       .then((posts) => {
-        res.json(posts);
+        res.render("posts", { posts: posts });
       })
       .catch((error) => {
-        res.status(500).json({ error: error });
+        res.render("posts", { message: error });
       });
   } else {
     blogService
       .getAllPosts()
       .then((posts) => {
-        res.json(posts);
+        res.render("posts", { posts: posts });
       })
       .catch((error) => {
-        res.status(500).json({ error: error });
+        res.render("posts", { message: error });
       });
   }
 });
 
-app.get("/post/:id", function (req, res) {
-  const postId = parseInt(req.params.id);
-
-  blogService
-    .getPostById(postId)
-    .then((post) => {
-      res.json(post);
-    })
-    .catch((error) => {
-      res.status(500).json({ error: error });
-    });
-});
-
 app.get("/posts/add", function(req,res){
-  res.sendFile(path.join(__dirname,"/views/addPost.html"));
+  res.render("addPost");
 });
-app.post("/posts/add", upload.single("featureImage"), function(req, res) {
+
+app.post("/posts/add", upload.single("featureImage"), function (req, res) {
   if (req.file) {
     let streamUpload = (req) => {
       return new Promise((resolve, reject) => {
@@ -149,7 +267,7 @@ app.post("/posts/add", upload.single("featureImage"), function(req, res) {
       postDate: new Date().toISOString().split("T")[0],
       category: req.body.category,
       featureImage: req.body.featureImage,
-      published: req.body.published
+      published: req.body.published,
     };
 
     blogService
@@ -163,18 +281,19 @@ app.post("/posts/add", upload.single("featureImage"), function(req, res) {
       });
   }
 });
+
 app.get("/categories", function(req,res){
   blogService.getCategories()
   .then((categories) => {
-    res.json(categories);
+    res.render("categories", { categories: categories });
     })
     .catch((error) => {
-      res.status(500).json({ error: error });
+      res.render("categories", { message: "no results" });
     });
 });
 
 app.use(function(req,res){
-    res.status(404).send("Page Not Found");
+  res.status(404).render("404");
 });
 
 // Initialize the blog service and start the server only if initialization is successful
